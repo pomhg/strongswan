@@ -238,6 +238,14 @@ static bool bypass_single_socket(private_charonservice_t *this, int fd)
 		goto failed;
 	}
 	androidjni_detach_thread();
+	/* protect() only bypasses the VPN.  Pin unconnected IKE/NAT-T sockets to
+	 * the selected physical network so they don't retain the old path while
+	 * Android changes its default network.  This is best-effort until the
+	 * first network callback has provided complete link properties. */
+	if (!this->network_manager->bind_socket(this->network_manager, fd))
+	{
+		DBG2(DBG_KNL, "binding socket %d to underlying network failed", fd);
+	}
 	return TRUE;
 
 failed:
