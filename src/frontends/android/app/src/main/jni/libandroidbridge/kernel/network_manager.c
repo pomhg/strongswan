@@ -162,6 +162,28 @@ METHOD(network_manager_t, is_connected, bool,
 	return connected;
 }
 
+METHOD(network_manager_t, bind_socket, bool,
+	private_network_manager_t *this, int fd)
+{
+	JNIEnv *env;
+	jmethodID method_id;
+	bool bound = FALSE;
+
+	androidjni_attach_thread(&env);
+	method_id = (*env)->GetMethodID(env, this->cls, "bindSocket", "(I)Z");
+	if (!method_id)
+	{
+		androidjni_exception_occurred(env);
+	}
+	else
+	{
+		bound = (*env)->CallBooleanMethod(env, this->obj, method_id, fd);
+		bound = !androidjni_exception_occurred(env) && bound;
+	}
+	androidjni_detach_thread();
+	return bound;
+}
+
 METHOD(network_manager_t, destroy, void,
 	private_network_manager_t *this)
 {
@@ -205,6 +227,7 @@ network_manager_t *network_manager_create(jobject context)
 			.add_connectivity_cb = _add_connectivity_cb,
 			.remove_connectivity_cb = _remove_connectivity_cb,
 			.is_connected = _is_connected,
+			.bind_socket = _bind_socket,
 			.destroy = _destroy,
 		},
 		.mutex = mutex_create(MUTEX_TYPE_DEFAULT),

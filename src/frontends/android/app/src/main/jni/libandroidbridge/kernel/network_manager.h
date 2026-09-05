@@ -74,6 +74,14 @@ struct network_manager_t {
 	bool (*is_connected)(network_manager_t *this);
 
 	/**
+	 * Bind a socket to the selected underlying Android network.
+	 *
+	 * @param fd				socket file descriptor
+	 * @return				TRUE if the socket was bound
+	 */
+	bool (*bind_socket)(network_manager_t *this, int fd);
+
+	/**
 	 * Destroy a network_manager_t instance
 	 */
 	void (*destroy)(network_manager_t *this);

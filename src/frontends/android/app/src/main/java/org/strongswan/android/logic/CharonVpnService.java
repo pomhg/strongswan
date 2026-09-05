@@ -30,6 +30,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Network;
 import android.net.ProxyInfo;
 import android.net.VpnService;
 import android.os.Build;
@@ -92,6 +93,9 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 	public static final String LOG_FILE = "charon.log";
 	public static final String KEY_IS_RETRY = "retry";
 	public static final int VPN_STATE_NOTIFICATION_ID = 1;
+
+	private final Object mUnderlyingNetworkLock = new Object();
+	private Network[] mUnderlyingNetworks;
 
 	private String mLogFile;
 	private String mAppDir;
@@ -823,6 +827,37 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 	public native void initiate(String config);
 
 	/**
+	 * Remember the selected upstream even before a VPN is established, and
+	 * serialize updates with establishment so a new builder can't overwrite it.
+	 */
+	@Override
+	@TargetApi(Build.VERSION_CODES.LOLLIPOP_MR1)
+	public boolean setUnderlyingNetworks(Network[] networks)
+	{
+		synchronized (mUnderlyingNetworkLock)
+		{
+			mUnderlyingNetworks = networks != null ? networks.clone() : null;
+			return super.setUnderlyingNetworks(networks);
+		}
+	}
+
+	/**
+	 * Apply the current upstream on every TUN creation, including reestablishment
+	 * without DNS and the temporary blocking interface.
+	 */
+	private ParcelFileDescriptor establishVpn(VpnService.Builder builder)
+	{
+		synchronized (mUnderlyingNetworkLock)
+		{
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1)
+			{
+				builder.setUnderlyingNetworks(mUnderlyingNetworks);
+			}
+			return builder.establish();
+		}
+	}
+
+	/**
 	 * Adapter for VpnService.Builder which is used to access it safely via JNI.
 	 * There is a corresponding C object to access it from native code.
 	 */
@@ -937,7 +972,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			try
 			{
 				mCache.applyData(mBuilder);
-				fd = mBuilder.establish();
+				fd = establishVpn(mBuilder);
 				if (fd != null)
 				{
 					closeBlocking();
@@ -1002,7 +1037,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			{
 				Builder builder = createBuilder(mProfile.getName());
 				mEstablishedCache.applyData(builder);
-				fd = builder.establish();
+				fd = establishVpn(builder);
 			}
 			catch (Exception ex)
 			{
