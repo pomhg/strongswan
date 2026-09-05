@@ -63,8 +63,10 @@ public class NetworkManager extends BroadcastReceiver implements Runnable
 	public NetworkManager(Context context)
 	{
 		mContext = context;
+		/* Only Android 8+ guarantees initial capabilities and link properties
+		 * callbacks after onAvailable().  Older versions use the receiver. */
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 		{
 			mCallback = new ConnectivityManager.NetworkCallback()
 			{
@@ -306,7 +308,7 @@ public class NetworkManager extends BroadcastReceiver implements Runnable
 		}
 		mEventNotifier = new Thread(this, "strongSwan network events");
 		mEventNotifier.start();
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 		{
 			ConnectivityManager cm = mContext.getSystemService(ConnectivityManager.class);
 			/* The app's default network is the VPN itself, so listen for all
@@ -331,7 +333,7 @@ public class NetworkManager extends BroadcastReceiver implements Runnable
 
 	public void Unregister()
 	{
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 		{
 			ConnectivityManager cm = mContext.getSystemService(ConnectivityManager.class);
 			cm.unregisterNetworkCallback(mCallback);
@@ -362,7 +364,7 @@ public class NetworkManager extends BroadcastReceiver implements Runnable
 	@SuppressWarnings("deprecation")
 	public boolean isConnected()
 	{
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 		{
 			synchronized (this)
 			{
@@ -419,7 +421,7 @@ public class NetworkManager extends BroadcastReceiver implements Runnable
 	{
 		/* Only the NetworkCallback path selects and explicitly binds an
 		 * underlying Network.  Legacy versions continue to use the default. */
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N ||
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
 			!(mContext instanceof VpnService))
 		{
 			return;
@@ -427,8 +429,8 @@ public class NetworkManager extends BroadcastReceiver implements Runnable
 		Network[] networks = network == null ? new Network[0] : new Network[] { network };
 		if (!((VpnService)mContext).setUnderlyingNetworks(networks))
 		{
-			/* This may fail before the VPN is established.  A subsequent network
-			 * change while it is active will update it again. */
+			/* This may fail before the VPN is established.  CharonVpnService
+			 * retains the selection and applies it when creating the interface. */
 			Log.w(TAG, "failed to set VPN underlying network to " + network);
 		}
 	}
