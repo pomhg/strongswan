@@ -238,6 +238,12 @@ static bool bypass_single_socket(private_charonservice_t *this, int fd)
 		goto failed;
 	}
 	androidjni_detach_thread();
+	/* protected sockets use the system's default network, which might not yet
+	 * (or no longer) be the network we use, so bind them explicitly */
+	if (!this->network_manager->bind_socket(this->network_manager, fd))
+	{
+		DBG1(DBG_KNL, "binding socket to underlying network failed");
+	}
 	return TRUE;
 
 failed:

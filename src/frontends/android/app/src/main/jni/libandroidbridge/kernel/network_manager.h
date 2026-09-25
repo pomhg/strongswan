@@ -74,6 +74,14 @@ struct network_manager_t {
 	bool (*is_connected)(network_manager_t *this);
 
 	/**
+	 * Bind the given socket to the currently selected network (if any)
+	 *
+	 * @param fd				socket to bind
+	 * @return					FALSE if binding the socket failed
+	 */
+	bool (*bind_socket)(network_manager_t *this, int fd);
+
+	/**
 	 * Destroy a network_manager_t instance
 	 */
 	void (*destroy)(network_manager_t *this);
